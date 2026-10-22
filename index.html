@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=overlays-content">
+    <title>Irish Times Simplex Crossword Interactive Experience</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Canvas Confetti Library for Celebrations -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            purple: '#7C3AED',
+                            pink: '#EC4899',
+                            blue: '#2563EB',
+                            emerald: '#10B981',
+                            amber: '#F59E0B',
+                            dark: '#0F172A'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Touch & Big Screen Display Optimization */
+        * {
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+            touch-action: manipulation;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #311042 100%);
+            min-height: 100vh;
+            color: #f8fafc;
+            overflow-x: hidden;
+            -webkit-tap-highlight-color: transparent;
+        }
+        /* Custom scrollbar for large touchscreen drag/scroll */
+        ::-webkit-scrollbar {
+            width: 14px;
+            height: 14px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+            border-radius: 8px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(124, 58, 237, 0.6);
+            border-radius: 8px;
+            border: 3px solid rgba(15, 23, 42, 0.6);
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(124, 58, 237, 0.9);
+        }
+        .touch-btn {
+            transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.15s ease, box-shadow 0.15s ease;
+            cursor: pointer;
+        }
+        .touch-btn:active, .touch-btn.active-touch {
+            transform: scale(0.93) !important;
+        }
+        /* Flip Card Effect */
+        .perspective-1000 {
+            perspective: 1000px;
+        }
+        .transform-style-3d {
+            transform-style: preserve-3d;
+        }
+        .backface-hidden {
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+        }
+        .rotate-y-180 {
+            transform: rotateY(180deg);
+        }
+        /* Glassmorphism */
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.75);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+        /* Crossword Cell styling */
+        .grid-cell {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            font-weight: 800;
+            cursor: pointer;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            transition: all 0.15s ease;
+        }
+        .grid-cell.black {
+            background-color: #090d16;
+            border-color: #090d16;
+            cursor: default;
+        }
+        .grid-cell.white {
+            background-color: #1e293b;
+            color: #ffffff;
+        }
+        .grid-cell.selected {
+            background-color: #7c3aed !important;
+            color: #ffffff !important;
+            box-shadow: 0 0 18px rgba(124, 58, 237, 0.9);
+            z-index: 10;
+        }
+        .grid-cell.highlighted {
+            background-color: #3b82f6;
+            color: #ffffff;
+        }
+        .grid-cell .number {
+            position: absolute;
+            top: 2px;
+            left: 3px;
+            font-size: 0.65rem;
+            font-weight: 700;
+            color: #94a3b8;
+            pointer-events: none;
+        }
+        .grid-cell.selected .number, .grid-cell.highlighted .number {
+            color: #e2e8f0;
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen text-slate-100 p-4 md:p-6 lg:p-8">
+
+    <!-- HEADER / NAVIGATION -->
+    <header class="max-w-7xl w-full mx-auto mb-6">
+        <div class="glass-panel rounded-3xl p-4 md:p-6 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-4">
+                <div class="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-gradient-to-tr from-purple-600 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/30">
+                    <i class="fa-solid fa-puzzle-piece text-3xl text-white"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl md:text-3xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-purple-200 to-pink-300">
+                        SIMPLEX CROSSWORD
+                    </h1>
+                    <p class="text-xs md:text-sm font-semibold text-purple-300/80 tracking-wide uppercase">
+                        The Irish Times • No. 19,196 Touchscreen Kiosk
+                    </p>
+                </div>
+            </div>
+
+            <!-- MODE SELECTOR TABS -->
+            <div class="flex items-center bg-slate-900/80 p-1.5 rounded-2xl border border-slate-700/60 w-full md:w-auto">
+                <button id="tab-cards" class="touch-btn flex-1 md:flex-initial px-6 py-3.5 rounded-xl font-bold text-base md:text-lg flex items-center justify-center gap-2 transition-all bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg">
+                    <i class="fa-solid fa-layer-group"></i> Browse Cards
+                </button>
+                <button id="tab-quiz" class="touch-btn flex-1 md:flex-initial px-6 py-3.5 rounded-xl font-bold text-base md:text-lg flex items-center justify-center gap-2 transition-all text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-gamepad"></i> Quiz Mode
+                </button>
+                <button id="tab-grid" class="touch-btn flex-1 md:flex-initial px-6 py-3.5 rounded-xl font-bold text-base md:text-lg flex items-center justify-center gap-2 transition-all text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-table-cells"></i> Full Grid
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT CONTAINER -->
+    <main class="max-w-7xl w-full mx-auto flex-1 flex flex-col">
+
+        <!-- ================= MODE 1: BROWSE & REVEAL CARDS ================= -->
+        <section id="mode-cards" class="flex-1 flex flex-col gap-6">
+            <!-- Controls & Filters -->
+            <div class="glass-panel p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4">
+                <div class="flex items-center gap-2 overflow-x-auto w-full md:w-auto pb-2 md:pb-0">
+                    <button id="filter-ALL" class="card-filter-btn touch-btn px-6 py-3 rounded-xl font-bold text-sm md:text-base bg-purple-600 text-white shadow-lg">
+                        All Clues (<span id="count-all">36</span>)
+                    </button>
+                    <button id="filter-ACROSS" class="card-filter-btn touch-btn px-6 py-3 rounded-xl font-bold text-sm md:text-base bg-slate-800 text-slate-300 hover:bg-slate-700">
+                        Across (<span id="count-across">18</span>)
+                    </button>
+                    <button id="filter-DOWN" class="card-filter-btn touch-btn px-6 py-3 rounded-xl font-bold text-sm md:text-base bg-slate-800 text-slate-300 hover:bg-slate-700">
+                        Down (<span id="count-down">18</span>)
+                    </button>
+                </div>
+
+                <!-- Touch Search Input -->
+                <div class="relative w-full md:w-80">
+                    <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-lg"></i>
+                    <input type="text" id="card-search" placeholder="Search clues or numbers..." 
+                        inputmode="none" readonly onclick="openTouchVirtualKeyboard()"
+                        class="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl pl-12 pr-4 py-3.5 text-base md:text-lg text-white placeholder-slate-400 focus:outline-none focus:border-purple-500 transition-colors cursor-pointer">
+                </div>
+            </div>
+
+            <!-- Cards Grid -->
+            <div id="cards-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-8">
+                <!-- Cards injected dynamically -->
+            </div>
+        </section>
+
+        <!-- ================= MODE 2: QUIZ GAME MODE ================= -->
+        <section id="mode-quiz" class="hidden flex-1 flex flex-col justify-between items-center max-w-4xl mx-auto w-full gap-6">
+            <!-- Progress & Score Header -->
+            <div class="w-full glass-panel p-5 md:p-6 rounded-3xl flex items-center justify-between gap-4">
+                <div class="flex items-center gap-3">
+                    <button id="btn-quiz-prev" class="touch-btn p-4 rounded-2xl bg-slate-800 border border-slate-700 hover:bg-slate-700 text-2xl text-purple-300">
+                        <i class="fa-solid fa-chevron-left"></i>
+                    </button>
+                    <div>
+                        <span id="quiz-clue-badge" class="px-4 py-1.5 rounded-full text-xs md:text-sm font-black tracking-wider uppercase bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                            ACROSS #1
+                        </span>
+                        <p class="text-xs md:text-sm text-slate-400 font-semibold mt-1" id="quiz-counter-text">Clue 1 of 36</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-3">
+                    <div class="text-right">
+                        <span class="text-xs font-bold uppercase text-slate-400">Score</span>
+                        <p class="text-2xl md:text-3xl font-black text-amber-400" id="quiz-score">0 PTS</p>
+                    </div>
+                    <button id="btn-quiz-next" class="touch-btn p-4 rounded-2xl bg-purple-600 hover:bg-purple-500 text-2xl text-white shadow-lg shadow-purple-600/30">
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Main Clue Box -->
+            <div class="w-full glass-panel p-8 md:p-10 rounded-3xl flex flex-col items-center text-center gap-6 border-2 border-purple-500/30 relative overflow-hidden shadow-2xl">
+                <div class="absolute -right-10 -bottom-10 w-40 h-40 bg-purple-600/10 rounded-full blur-3xl pointer-events-none"></div>
+                <div class="absolute -left-10 -top-10 w-40 h-40 bg-pink-600/10 rounded-full blur-3xl pointer-events-none"></div>
+
+                <p id="quiz-clue-text" class="text-2xl md:text-4xl font-extrabold text-white leading-relaxed max-w-2xl">
+                    "It's used in jam-making"
+                </p>
+                <div id="quiz-length-tag" class="px-5 py-2 rounded-xl bg-slate-800/80 border border-slate-700 text-sm md:text-base font-bold text-slate-300">
+                    6 Letters
+                </div>
+
+                <!-- Letter Slots Container -->
+                <div id="quiz-slots" class="flex flex-wrap justify-center gap-2 md:gap-3 my-4">
+                    <!-- Letter slots injected dynamically -->
+                </div>
+
+                <!-- Helper Buttons -->
+                <div class="flex flex-wrap justify-center gap-4 w-full pt-2">
+                    <button id="btn-quiz-hint" class="touch-btn px-6 py-4 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-amber-300 font-bold flex items-center gap-2 text-base md:text-lg">
+                        <i class="fa-solid fa-lightbulb"></i> Reveal Letter (-10 pts)
+                    </button>
+                    <button id="btn-quiz-reveal" class="touch-btn px-6 py-4 rounded-2xl bg-pink-600/20 hover:bg-pink-600/30 border border-pink-500/40 text-pink-300 font-bold flex items-center gap-2 text-base md:text-lg">
+                        <i class="fa-solid fa-eye"></i> Reveal Answer
+                    </button>
+                </div>
+            </div>
+
+            <!-- Touch Keyboard for Quiz -->
+            <div id="quiz-keyboard" class="w-full max-w-3xl glass-panel p-4 md:p-5 rounded-3xl flex flex-col gap-2.5 shadow-2xl">
+                <!-- Rows injected dynamically -->
+            </div>
+        </section>
+
+        <!-- ================= MODE 3: INTERACTIVE CROSSWORD GRID ================= -->
+        <section id="mode-grid" class="hidden flex-1 flex flex-col lg:flex-row gap-6 items-start">
+            <!-- Left Side: Interactive Grid -->
+            <div class="w-full lg:w-7/12 glass-panel p-4 md:p-6 rounded-3xl flex flex-col items-center justify-center">
+                <div id="grid-board" class="w-full max-w-[550px] grid grid-cols-13 gap-1 bg-slate-900 p-2 rounded-2xl border border-slate-700 shadow-2xl">
+                    <!-- 13x13 Cells injected via JS -->
+                </div>
+            </div>
+
+            <!-- Right Side: Clue & Virtual Keyboard -->
+            <div class="w-full lg:w-5/12 flex flex-col gap-6">
+                <!-- Selected Clue Details -->
+                <div class="glass-panel p-6 rounded-3xl flex flex-col gap-4 border border-purple-500/30">
+                    <div class="flex items-center justify-between">
+                        <span id="grid-clue-label" class="px-3.5 py-1.5 rounded-full text-xs md:text-sm font-black tracking-wider uppercase bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                            ACROSS 1
+                        </span>
+                        <button id="btn-grid-dir" class="touch-btn px-4 py-2 rounded-xl bg-slate-800 border border-slate-700 text-xs md:text-sm font-bold text-slate-300 hover:text-white">
+                            <i class="fa-solid fa-rotate"></i> Switch Direction
+                        </button>
+                    </div>
+                    <p id="grid-clue-text" class="text-xl md:text-2xl font-bold text-white leading-snug">
+                        Select a cell on the board to view the corresponding crossword clue.
+                    </p>
+                    <div class="flex items-center justify-between pt-2 border-t border-slate-700/60">
+                        <button id="btn-grid-cell" class="touch-btn px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold text-xs md:text-sm flex items-center gap-1.5">
+                            <i class="fa-solid fa-key"></i> Reveal Cell
+                        </button>
+                        <button id="btn-grid-word" class="touch-btn px-4 py-2.5 rounded-xl bg-pink-600/20 hover:bg-pink-600/30 border border-pink-500/40 text-pink-300 font-bold text-xs md:text-sm flex items-center gap-1.5">
+                            <i class="fa-solid fa-eye"></i> Reveal Word
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Touch Keyboard for Grid -->
+                <div id="grid-keyboard" class="glass-panel p-4 md:p-5 rounded-3xl flex flex-col gap-2.5">
+                    <!-- Key Rows -->
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="max-w-7xl w-full mx-auto mt-6 pt-4 border-t border-slate-800 flex flex-col md:flex-row items-center justify-between gap-2 text-xs md:text-sm text-slate-400">
+        <p>Big Screen Touch Display Kiosk • Irish Times Simplex Crossword Solver & Game</p>
+        <p>Interactive Multi-Touch Ready Engine</p>
+    </footer>
+
+    <!-- SCRIPT LOGIC -->
+    <script>
+        // ================= CROSSWORD DATASET =================
+        const CROSSWORD_DATA = [
+            // ACROSS
+            { id: '1A', num: 1, dir: 'ACROSS', clue: "It's used in jam-making", answer: "PECTIN", len: 6, x: 0, y: 0 },
+            { id: '4A', num: 4, dir: 'ACROSS', clue: "Buyer or client", answer: "CUSTOMER", len: 8, x: 0, y: 5 },
+            { id: '9A', num: 9, dir: 'ACROSS', clue: "The continent named after the consort of Zeus", answer: "EUROPE", len: 6, x: 2, y: 0 },
+            { id: '10A', num: 10, dir: 'ACROSS', clue: "Gives someone a job or position", answer: "APPOINTS", len: 8, x: 2, y: 5 },
+            { id: '12A', num: 12, dir: 'ACROSS', clue: "TS..., author of The Waste-land", answer: "ELIOT", len: 5, x: 4, y: 0 },
+            { id: '13A', num: 13, dir: 'ACROSS', clue: "Polaris", answer: "NORTH STAR", len: 9, x: 4, y: 4 },
+            { id: '15A', num: 15, dir: 'ACROSS', clue: "Fluid from cuttlefish", answer: "INK", len: 3, x: 5, y: 2 },
+            { id: '16A', num: 16, dir: 'ACROSS', clue: "Look for, origin or ancestor, say", answer: "TRACE", len: 5, x: 6, y: 0 },
+            { id: '17A', num: 17, dir: 'ACROSS', clue: "Water protozoan", answer: "AMOEBA", len: 6, x: 6, y: 4 },
+            { id: '22A', num: 22, dir: 'ACROSS', clue: "In winter, they're known as ermines", answer: "STOATS", len: 6, x: 8, y: 2 },
+            { id: '24A', num: 24, dir: 'ACROSS', clue: "Jewelled head ornament", answer: "TIARA", len: 5, x: 8, y: 8 },
+            { id: '27A', num: 27, dir: 'ACROSS', clue: "Consume food", answer: "EAT", len: 3, x: 9, y: 6 },
+            { id: '28A', num: 28, dir: 'ACROSS', clue: "Handheld collapsible canopies", answer: "UMBRELLAS", len: 9, x: 10, y: 0 },
+            { id: '31A', num: 31, dir: 'ACROSS', clue: "A bald one is a US emblem", answer: "EAGLE", len: 5, x: 10, y: 8 },
+            { id: '32A', num: 32, dir: 'ACROSS', clue: "M or K", answer: "THOUSAND", len: 8, x: 12, y: 0 },
+            { id: '33A', num: 33, dir: 'ACROSS', clue: "Loud angry rant", answer: "TIRADE", len: 6, x: 12, y: 7 },
+            { id: '34A', num: 34, dir: 'ACROSS', clue: "Average, mediocre", answer: "MIDDLING", len: 8, x: 13, y: 0 },
+            { id: '35A', num: 35, dir: 'ACROSS', clue: "Trembling trees", answer: "ASPENS", len: 6, x: 13, y: 7 },
+
+            // DOWN
+            { id: '1D', num: 1, dir: 'DOWN', clue: "Stops from happening", answer: "PREVENTS", len: 8, x: 0, y: 0 },
+            { id: '2D', num: 2, dir: 'DOWN', clue: "Mardi Gras or Notting Hill", answer: "CARNIVAL", len: 8, x: 0, y: 2 },
+            { id: '3D', num: 3, dir: 'DOWN', clue: "Unwilling to wait", answer: "IMPATIENT", len: 9, x: 0, y: 3 },
+            { id: '5D', num: 5, dir: 'DOWN', clue: "Higher in place or position", answer: "UPPER", len: 5, x: 0, y: 5 },
+            { id: '6D', num: 6, dir: 'DOWN', clue: "Projection of gear wheel and gum", answer: "TOOTH", len: 5, x: 0, y: 7 },
+            { id: '7D', num: 7, dir: 'DOWN', clue: "60 seconds", answer: "MINUTE", len: 6, x: 0, y: 9 },
+            { id: '8D', num: 8, dir: 'DOWN', clue: "Area popular with holiday-makers", answer: "RESORT", len: 6, x: 0, y: 11 },
+            { id: '11D', num: 11, dir: 'DOWN', clue: "Turkish capital", answer: "ANKARA", len: 6, x: 3, y: 4 },
+            { id: '14D', num: 14, dir: 'DOWN', clue: "Golfing starts here", answer: "TEE", len: 3, x: 4, y: 6 },
+            { id: '18D', num: 18, dir: 'DOWN', clue: "Be overly preoccupied with something", answer: "OBSESS", len: 6, x: 6, y: 5 },
+            { id: '19D', num: 19, dir: 'DOWN', clue: "Containers with cells producing power", answer: "BATTERIES", len: 9, x: 6, y: 7 },
+            { id: '20D', num: 20, dir: 'DOWN', clue: "Means of communication", answer: "LANGUAGE", len: 8, x: 7, y: 10 },
+            { id: '21D', num: 21, dir: 'DOWN', clue: "Groundless, unfounded", answer: "BASELESS", len: 8, x: 7, y: 12 },
+            { id: '23D', num: 23, dir: 'DOWN', clue: "Viscous liquid", answer: "TAR", len: 3, x: 8, y: 3 },
+            { id: '25D', num: 25, dir: 'DOWN', clue: '"Age cannot wither her, nor ... stale/Her infinite variety" (Antony and Cleopatra)', answer: "CUSTOM", len: 6, x: 9, y: 0 },
+            { id: '26D', num: 26, dir: 'DOWN', clue: "Overseas", answer: "ABROAD", len: 6, x: 9, y: 1 },
+            { id: '29D', num: 29, dir: 'DOWN', clue: "Artist's tripod", answer: "EASEL", len: 5, x: 10, y: 3 },
+            { id: '30D', num: 30, dir: 'DOWN', clue: "Cloth woven from flax", answer: "LINEN", len: 5, x: 10, y: 4 }
+        ];
+
+        // COLOR PALETTE FOR CARDS
+        const CARD_COLORS = [
+            'from-purple-600/40 to-indigo-600/40 border-purple-500/40',
+            'from-blue-600/40 to-cyan-600/40 border-blue-500/40',
+            'from-pink-600/40 to-rose-600/40 border-pink-500/40',
+            'from-emerald-600/40 to-teal-600/40 border-emerald-500/40',
+            'from-amber-600/40 to-orange-600/40 border-amber-500/40',
+            'from-violet-600/40 to-fuchsia-600/40 border-violet-500/40'
+        ];
+
+        // AUDIO SYNTHESIZER FOR TOUCH FEEDBACK
+        let audioCtx = null;
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function playSound(type) {
+            try {
+                initAudio();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                const now = audioCtx.currentTime;
+                if (type === 'tap') {
+                    osc.frequency.setValueAtTime(450, now);
+                    osc.frequency.exponentialRampToValueAtTime(220, now + 0.05);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+                    osc.start(now);
+                    osc.stop(now + 0.05);
+                } else if (type === 'correct') {
+                    osc.frequency.setValueAtTime(523.25, now);
+                    osc.frequency.setValueAtTime(659.25, now + 0.08);
+                    osc.frequency.setValueAtTime(783.99, now + 0.16);
+                    gain.gain.setValueAtTime(0.25, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                    osc.start(now);
+                    osc.stop(now + 0.3);
+                } else if (type === 'reveal') {
+                    osc.frequency.setValueAtTime(320, now);
+                    osc.frequency.exponentialRampToValueAtTime(850, now + 0.15);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                    osc.start(now);
+                    osc.stop(now + 0.15);
+                }
+            } catch (e) {
+                // Audio fallback
+            }
+        }
+
+        // TOUCH HELPER WRAPPER TO PREVENT 300MS DELAYS & GHOST CLICKS
+        function addTouchSafeListener(element, callback) {
+            if (!element) return;
+            let handled = false;
+
+            const handleTouch = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handled = true;
+                initAudio();
+                callback(e);
+                setTimeout(() => { handled = false; }, 300);
+            };
+
+            element.addEventListener('pointerdown', (e) => {
+                if (e.pointerType === 'touch' || e.pointerType === 'pen') {
+                    handleTouch(e);
+                }
+            }, { passive: false });
+
+            element.addEventListener('click', (e) => {
+                if (!handled) {
+                    initAudio();
+                    callback(e);
+                }
+            });
+        }
+
+        // STATE VARIABLES
+        let currentMode = 'cards';
+        let currentFilter = 'ALL';
+        let quizIndex = 0;
+        let quizScore = 0;
+        let quizUserGuess = [];
+        let gridSelectedCell = null;
+        let gridDirection = 'ACROSS';
+        let gridState = Array(13).fill(null).map(() => Array(13).fill(''));
+
+        // KEYBOARD LAYOUT
+        const KEYBOARD_ROWS = [
+            ['Q','W','E','R','T','Y','U','I','O','P'],
+            ['A','S','D','F','G','H','J','K','L'],
+            ['Z','X','C','V','B','N','M','BACK']
+        ];
+
+        // INITIALIZATION
+        window.onload = function() {
+            setupNavigationHandlers();
+            renderCards();
+            setupQuiz();
+            setupGridBoard();
+            renderKeyboards();
+        };
+
+        function setupNavigationHandlers() {
+            // Tab switching with touch handlers
+            addTouchSafeListener(document.getElementById('tab-cards'), () => switchMode('cards'));
+            addTouchSafeListener(document.getElementById('tab-quiz'), () => switchMode('quiz'));
+            addTouchSafeListener(document.getElementById('tab-grid'), () => switchMode('grid'));
+
+            // Card Filters
+            addTouchSafeListener(document.getElementById('filter-ALL'), () => filterCards('ALL'));
+            addTouchSafeListener(document.getElementById('filter-ACROSS'), () => filterCards('ACROSS'));
+            addTouchSafeListener(document.getElementById('filter-DOWN'), () => filterCards('DOWN'));
+
+            // Quiz Buttons
+            addTouchSafeListener(document.getElementById('btn-quiz-prev'), () => prevQuizClue());
+            addTouchSafeListener(document.getElementById('btn-quiz-next'), () => nextQuizClue());
+            addTouchSafeListener(document.getElementById('btn-quiz-hint'), () => revealQuizHint());
+            addTouchSafeListener(document.getElementById('btn-quiz-reveal'), () => revealQuizAnswer());
+
+            // Grid Controls
+            addTouchSafeListener(document.getElementById('btn-grid-dir'), () => toggleGridDirection());
+            addTouchSafeListener(document.getElementById('btn-grid-cell'), () => revealGridCell());
+            addTouchSafeListener(document.getElementById('btn-grid-word'), () => revealGridWord());
+        }
+
+        // NAVIGATION / MODE SWITCHING
+        function switchMode(mode) {
+            playSound('tap');
+            currentMode = mode;
+
+            document.getElementById('mode-cards').classList.add('hidden');
+            document.getElementById('mode-quiz').classList.add('hidden');
+            document.getElementById('mode-grid').classList.add('hidden');
+
+            ['cards', 'quiz', 'grid'].forEach(m => {
+                const btn = document.getElementById(`tab-${m}`);
+                btn.className = "touch-btn flex-1 md:flex-initial px-6 py-3.5 rounded-xl font-bold text-base md:text-lg flex items-center justify-center gap-2 transition-all text-slate-400 hover:text-white";
+            });
+
+            document.getElementById(`mode-${mode}`).classList.remove('hidden');
+            const activeBtn = document.getElementById(`tab-${mode}`);
+            activeBtn.className = "touch-btn flex-1 md:flex-initial px-6 py-3.5 rounded-xl font-bold text-base md:text-lg flex items-center justify-center gap-2 transition-all bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg";
+
+            if (mode === 'quiz') {
+                loadQuizClue(quizIndex);
+            }
+        }
+
+        // ================= MODE 1: BROWSE & REVEAL CARDS =================
+        function renderCards() {
+            const container = document.getElementById('cards-container');
+            container.innerHTML = '';
+
+            const searchTerm = document.getElementById('card-search').value.toLowerCase().trim();
+
+            const filtered = CROSSWORD_DATA.filter(item => {
+                const matchesFilter = currentFilter === 'ALL' || item.dir === currentFilter;
+                const matchesSearch = item.clue.toLowerCase().includes(searchTerm) || 
+                                      item.answer.toLowerCase().includes(searchTerm) ||
+                                      item.num.toString().includes(searchTerm);
+                return matchesFilter && matchesSearch;
+            });
+
+            filtered.forEach((item, index) => {
+                const colorClass = CARD_COLORS[index % CARD_COLORS.length];
+                const card = document.createElement('div');
+                card.className = "perspective-1000 h-64 w-full cursor-pointer";
+                
+                addTouchSafeListener(card, () => toggleCardFlip(card));
+
+                card.innerHTML = `
+                    <div class="card-inner relative w-full h-full duration-500 transform-style-3d transition-transform rounded-3xl">
+                        <!-- FRONT -->
+                        <div class="absolute inset-0 w-full h-full rounded-3xl glass-card bg-gradient-to-br ${colorClass} p-6 flex flex-col justify-between border backface-hidden shadow-xl hover:scale-[1.02] transition-transform">
+                            <div class="flex items-center justify-between">
+                                <span class="px-3 py-1 rounded-full text-xs font-black tracking-wider uppercase bg-white/10 text-white border border-white/20">
+                                    ${item.dir} #${item.num}
+                                </span>
+                                <span class="text-xs font-extrabold text-purple-200/80 bg-slate-900/40 px-3 py-1 rounded-xl">
+                                    ${item.len} LETTERS
+                                </span>
+                            </div>
+                            <p class="text-xl font-bold text-white leading-snug my-2">
+                                "${item.clue}"
+                            </p>
+                            <div class="flex items-center justify-between pt-2 border-t border-white/10 text-purple-200">
+                                <span class="text-xs font-semibold">Tap to reveal answer</span>
+                                <div class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-sm">
+                                    <i class="fa-solid fa-arrows-rotate"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- BACK -->
+                        <div class="absolute inset-0 w-full h-full rounded-3xl glass-card bg-gradient-to-br from-purple-900/90 to-slate-900/90 p-6 flex flex-col justify-between border border-purple-500/50 backface-hidden rotate-y-180 shadow-2xl">
+                            <div class="flex items-center justify-between">
+                                <span class="px-3 py-1 rounded-full text-xs font-black tracking-wider uppercase bg-purple-500/30 text-purple-200 border border-purple-500/40">
+                                    ANSWER
+                                </span>
+                                <span class="text-xs font-bold text-slate-400">${item.dir} #${item.num}</span>
+                            </div>
+                            <div class="text-center my-auto">
+                                <p class="text-3xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-pink-300 to-purple-300 uppercase">
+                                    ${item.answer}
+                                </p>
+                            </div>
+                            <div class="flex items-center justify-between pt-2 border-t border-white/10 text-slate-400">
+                                <span class="text-xs font-semibold">Tap to view clue</span>
+                                <div class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-sm">
+                                    <i class="fa-solid fa-rotate-left"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function toggleCardFlip(cardEl) {
+            playSound('tap');
+            const inner = cardEl.querySelector('.card-inner');
+            if (inner) inner.classList.toggle('rotate-y-180');
+        }
+
+        function filterCards(filter) {
+            playSound('tap');
+            currentFilter = filter;
+            ['ALL', 'ACROSS', 'DOWN'].forEach(f => {
+                const btn = document.getElementById(`filter-${f}`);
+                if (f === filter) {
+                    btn.className = "card-filter-btn touch-btn px-6 py-3 rounded-xl font-bold text-sm md:text-base bg-purple-600 text-white shadow-lg";
+                } else {
+                    btn.className = "card-filter-btn touch-btn px-6 py-3 rounded-xl font-bold text-sm md:text-base bg-slate-800 text-slate-300 hover:bg-slate-700";
+                }
+            });
+            renderCards();
+        }
+
+        function openTouchVirtualKeyboard() {
+            // Clears search on tap to allow quick re-typing on big screen kiosk
+            document.getElementById('card-search').value = '';
+            renderCards();
+        }
+
+        // ================= MODE 2: QUIZ GAME MODE =================
+        function setupQuiz() {
+            quizIndex = 0;
+            quizScore = 0;
+            document.getElementById('quiz-score').innerText = `${quizScore} PTS`;
+        }
+
+        function loadQuizClue(index) {
+            const item = CROSSWORD_DATA[index];
+            document.getElementById('quiz-clue-badge').innerText = `${item.dir} #${item.num}`;
+            document.getElementById('quiz-counter-text').innerText = `Clue ${index + 1} of ${CROSSWORD_DATA.length}`;
+            document.getElementById('quiz-clue-text').innerText = `"${item.clue}"`;
+            document.getElementById('quiz-length-tag').innerText = `${item.len} Letters`;
+
+            const cleanAnswer = item.answer.replace(/\s+/g, '');
+            quizUserGuess = Array(cleanAnswer.length).fill('');
+
+            renderQuizSlots(cleanAnswer);
+        }
+
+        function renderQuizSlots(cleanAnswer) {
+            const slotsContainer = document.getElementById('quiz-slots');
+            slotsContainer.innerHTML = '';
+
+            for (let i = 0; i < cleanAnswer.length; i++) {
+                const char = quizUserGuess[i] || '';
+                const slot = document.createElement('div');
+                slot.className = `w-12 h-14 md:w-16 md:h-20 rounded-2xl flex items-center justify-center text-2xl md:text-4xl font-black border-2 transition-all shadow-lg ${
+                    char ? 'bg-purple-600/40 border-purple-400 text-white scale-105' : 'bg-slate-900/80 border-slate-700 text-slate-500'
+                }`;
+                slot.innerText = char;
+                slotsContainer.appendChild(slot);
+            }
+        }
+
+        function handleQuizKeyInput(key) {
+            playSound('tap');
+            const item = CROSSWORD_DATA[quizIndex];
+            const cleanAnswer = item.answer.replace(/\s+/g, '');
+
+            if (key === 'BACK') {
+                for (let i = quizUserGuess.length - 1; i >= 0; i--) {
+                    if (quizUserGuess[i] !== '') {
+                        quizUserGuess[i] = '';
+                        break;
+                    }
+                }
+            } else {
+                for (let i = 0; i < quizUserGuess.length; i++) {
+                    if (quizUserGuess[i] === '') {
+                        quizUserGuess[i] = key;
+                        break;
+                    }
+                }
+            }
+
+            renderQuizSlots(cleanAnswer);
+
+            if (!quizUserGuess.includes('')) {
+                const userWord = quizUserGuess.join('');
+                if (userWord === cleanAnswer) {
+                    playSound('correct');
+                    confetti({ particleCount: 90, spread: 80, origin: { y: 0.6 } });
+                    quizScore += 50;
+                    document.getElementById('quiz-score').innerText = `${quizScore} PTS`;
+                    setTimeout(() => {
+                        nextQuizClue();
+                    }, 1200);
+                }
+            }
+        }
+
+        function prevQuizClue() {
+            playSound('tap');
+            quizIndex = (quizIndex - 1 + CROSSWORD_DATA.length) % CROSSWORD_DATA.length;
+            loadQuizClue(quizIndex);
+        }
+
+        function nextQuizClue() {
+            playSound('tap');
+            quizIndex = (quizIndex + 1) % CROSSWORD_DATA.length;
+            loadQuizClue(quizIndex);
+        }
+
+        function revealQuizHint() {
+            playSound('tap');
+            const item = CROSSWORD_DATA[quizIndex];
+            const cleanAnswer = item.answer.replace(/\s+/g, '');
+
+            for (let i = 0; i < cleanAnswer.length; i++) {
+                if (quizUserGuess[i] !== cleanAnswer[i]) {
+                    quizUserGuess[i] = cleanAnswer[i];
+                    break;
+                }
+            }
+            quizScore = Math.max(0, quizScore - 10);
+            document.getElementById('quiz-score').innerText = `${quizScore} PTS`;
+            renderQuizSlots(cleanAnswer);
+
+            if (quizUserGuess.join('') === cleanAnswer) {
+                playSound('correct');
+                confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } });
+            }
+        }
+
+        function revealQuizAnswer() {
+            playSound('reveal');
+            const item = CROSSWORD_DATA[quizIndex];
+            const cleanAnswer = item.answer.replace(/\s+/g, '');
+            quizUserGuess = cleanAnswer.split('');
+            renderQuizSlots(cleanAnswer);
+        }
+
+        // ================= MODE 3: INTERACTIVE CROSSWORD GRID =================
+        function setupGridBoard() {
+            const gridBoard = document.getElementById('grid-board');
+            gridBoard.innerHTML = '';
+
+            for (let r = 0; r < 13; r++) {
+                for (let c = 0; c < 13; c++) {
+                    const cell = document.createElement('div');
+                    cell.id = `grid-cell-${r}-${c}`;
+                    cell.className = 'grid-cell black';
+
+                    const numberClue = CROSSWORD_DATA.find(item => item.x === r && item.y === c);
+                    if (numberClue) {
+                        const numSpan = document.createElement('span');
+                        numSpan.className = 'number';
+                        numSpan.innerText = numberClue.num;
+                        cell.appendChild(numSpan);
+                    }
+
+                    addTouchSafeListener(cell, () => onCellClick(r, c));
+                    gridBoard.appendChild(cell);
+                }
+            }
+
+            CROSSWORD_DATA.forEach(item => {
+                const cleanAnswer = item.answer.replace(/\s+/g, '');
+                for (let i = 0; i < cleanAnswer.length; i++) {
+                    let r = item.x;
+                    let c = item.y;
+                    if (item.dir === 'ACROSS') c += i;
+                    else r += i;
+
+                    if (r < 13 && c < 13) {
+                        const cell = document.getElementById(`grid-cell-${r}-${c}`);
+                        if (cell) {
+                            cell.classList.remove('black');
+                            cell.classList.add('white');
+                        }
+                    }
+                }
+            });
+        }
+
+        function onCellClick(r, c) {
+            const cell = document.getElementById(`grid-cell-${r}-${c}`);
+            if (cell.classList.contains('black')) return;
+
+            playSound('tap');
+
+            if (gridSelectedCell && gridSelectedCell.r === r && gridSelectedCell.c === c) {
+                gridDirection = gridDirection === 'ACROSS' ? 'DOWN' : 'ACROSS';
+            }
+
+            gridSelectedCell = { r, c };
+            updateGridHighlights();
+            updateGridClueDisplay();
+        }
+
+        function toggleGridDirection() {
+            playSound('tap');
+            gridDirection = gridDirection === 'ACROSS' ? 'DOWN' : 'ACROSS';
+            updateGridHighlights();
+            updateGridClueDisplay();
+        }
+
+        function updateGridHighlights() {
+            document.querySelectorAll('.grid-cell').forEach(cell => {
+                cell.classList.remove('selected', 'highlighted');
+            });
+
+            if (!gridSelectedCell) return;
+
+            const selectedEl = document.getElementById(`grid-cell-${gridSelectedCell.r}-${gridSelectedCell.c}`);
+            if (selectedEl) selectedEl.classList.add('selected');
+
+            const activeClue = findClueForCell(gridSelectedCell.r, gridSelectedCell.c, gridDirection);
+            if (activeClue) {
+                const cleanAnswer = activeClue.answer.replace(/\s+/g, '');
+                for (let i = 0; i < cleanAnswer.length; i++) {
+                    let r = activeClue.x;
+                    let c = activeClue.y;
+                    if (activeClue.dir === 'ACROSS') c += i;
+                    else r += i;
+
+                    if (r !== gridSelectedCell.r || c !== gridSelectedCell.c) {
+                        const cell = document.getElementById(`grid-cell-${r}-${c}`);
+                        if (cell) cell.classList.add('highlighted');
+                    }
+                }
+            }
+        }
+
+        function findClueForCell(r, c, dir) {
+            return CROSSWORD_DATA.find(item => {
+                if (item.dir !== dir) return false;
+                const cleanLen = item.answer.replace(/\s+/g, '').length;
+                if (dir === 'ACROSS') {
+                    return item.x === r && c >= item.y && c < item.y + cleanLen;
+                } else {
+                    return item.y === c && r >= item.x && r < item.x + cleanLen;
+                }
+            });
+        }
+
+        function updateGridClueDisplay() {
+            if (!gridSelectedCell) return;
+            const clue = findClueForCell(gridSelectedCell.r, gridSelectedCell.c, gridDirection);
+            if (clue) {
+                document.getElementById('grid-clue-label').innerText = `${clue.dir} #${clue.num}`;
+                document.getElementById('grid-clue-text').innerText = `"${clue.clue}" (${clue.len} letters)`;
+            } else {
+                document.getElementById('grid-clue-label').innerText = `NO CLUE`;
+                document.getElementById('grid-clue-text').innerText = `No clue found in this direction. Try switching direction.`;
+            }
+        }
+
+        function handleGridKeyInput(key) {
+            if (!gridSelectedCell) return;
+            playSound('tap');
+
+            const { r, c } = gridSelectedCell;
+
+            if (key === 'BACK') {
+                gridState[r][c] = '';
+                updateCellText(r, c, '');
+                moveGridSelection(-1);
+            } else {
+                gridState[r][c] = key;
+                updateCellText(r, c, key);
+                moveGridSelection(1);
+            }
+        }
+
+        function updateCellText(r, c, char) {
+            const cell = document.getElementById(`grid-cell-${r}-${c}`);
+            if (!cell) return;
+            
+            const numSpan = cell.querySelector('.number');
+            cell.innerText = char;
+            if (numSpan) cell.appendChild(numSpan);
+        }
+
+        function moveGridSelection(step) {
+            if (!gridSelectedCell) return;
+            let { r, c } = gridSelectedCell;
+
+            if (gridDirection === 'ACROSS') c += step;
+            else r += step;
+
+            if (r >= 0 && r < 13 && c >= 0 && c < 13) {
+                const nextCell = document.getElementById(`grid-cell-${r}-${c}`);
+                if (nextCell && !nextCell.classList.contains('black')) {
+                    gridSelectedCell = { r, c };
+                    updateGridHighlights();
+                    updateGridClueDisplay();
+                }
+            }
+        }
+
+        function revealGridCell() {
+            if (!gridSelectedCell) return;
+            playSound('reveal');
+            const { r, c } = gridSelectedCell;
+            const clue = findClueForCell(r, c, gridDirection);
+            if (clue) {
+                const cleanAnswer = clue.answer.replace(/\s+/g, '');
+                const offset = gridDirection === 'ACROSS' ? (c - clue.y) : (r - clue.x);
+                if (offset >= 0 && offset < cleanAnswer.length) {
+                    const char = cleanAnswer[offset];
+                    gridState[r][c] = char;
+                    updateCellText(r, c, char);
+                }
+            }
+        }
+
+        function revealGridWord() {
+            if (!gridSelectedCell) return;
+            playSound('reveal');
+            const clue = findClueForCell(gridSelectedCell.r, gridSelectedCell.c, gridDirection);
+            if (clue) {
+                const cleanAnswer = clue.answer.replace(/\s+/g, '');
+                for (let i = 0; i < cleanAnswer.length; i++) {
+                    let r = clue.x;
+                    let c = clue.y;
+                    if (clue.dir === 'ACROSS') c += i;
+                    else r += i;
+
+                    gridState[r][c] = cleanAnswer[i];
+                    updateCellText(r, c, cleanAnswer[i]);
+                }
+            }
+        }
+
+        // ================= KEYBOARD RENDERER =================
+        function renderKeyboards() {
+            const quizKb = document.getElementById('quiz-keyboard');
+            const gridKb = document.getElementById('grid-keyboard');
+
+            quizKb.innerHTML = '';
+            gridKb.innerHTML = '';
+
+            KEYBOARD_ROWS.forEach(row => {
+                const qRow = document.createElement('div');
+                qRow.className = "flex justify-center gap-2 md:gap-3";
+
+                const gRow = document.createElement('div');
+                gRow.className = "flex justify-center gap-2 md:gap-3";
+
+                row.forEach(key => {
+                    const isBack = key === 'BACK';
+                    const keyWidth = isBack ? 'px-5 md:px-8 text-base md:text-lg' : 'w-11 md:w-14 text-xl md:text-2xl';
+
+                    // Quiz key with Touch-Safe Listener
+                    const qBtn = document.createElement('button');
+                    qBtn.className = `touch-btn h-14 md:h-16 rounded-2xl font-black bg-slate-800 hover:bg-slate-700 active:bg-purple-600 border border-slate-700/80 text-white flex items-center justify-center shadow-lg ${keyWidth}`;
+                    qBtn.innerHTML = isBack ? '<i class="fa-solid fa-backspace"></i>' : key;
+                    addTouchSafeListener(qBtn, () => handleQuizKeyInput(key));
+                    qRow.appendChild(qBtn);
+
+                    // Grid key with Touch-Safe Listener
+                    const gBtn = document.createElement('button');
+                    gBtn.className = `touch-btn h-12 md:h-14 rounded-2xl font-black bg-slate-800 hover:bg-slate-700 active:bg-purple-600 border border-slate-700/80 text-white flex items-center justify-center shadow-lg ${keyWidth}`;
+                    gBtn.innerHTML = isBack ? '<i class="fa-solid fa-backspace"></i>' : key;
+                    addTouchSafeListener(gBtn, () => handleGridKeyInput(key));
+                    gRow.appendChild(gBtn);
+                });
+
+                quizKb.appendChild(qRow);
+                gridKb.appendChild(gRow);
+            });
+        }
+    </script>
+</body>
+</html>
